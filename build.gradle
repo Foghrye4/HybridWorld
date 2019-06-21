@@ -11,13 +11,20 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 //Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 
 
-version = "0.1.2"
-group = "regencwg" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-archivesBaseName = "ReGenCWG"
+version = "0.0.1"
+group = "hybridworld" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+archivesBaseName = "hybridworld"
 
 sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
 compileJava {
     sourceCompatibility = targetCompatibility = '1.8'
+}
+
+jar {
+    manifest {
+        attributes("Manifest-Version": "1.0",
+		"FMLAT": "hybridworld_at.cfg")
+    }
 }
 
 repositories {
