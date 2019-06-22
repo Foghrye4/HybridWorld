@@ -2,13 +2,30 @@ package hybridworld.world.gen;
 
 import static hybridworld.HybridWorldMod.LOGGER;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.CharBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.Random;
 
+import com.google.common.collect.ImmutableList;
+
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.api.world.ICube;
+import io.github.opencubicchunks.cubicchunks.api.world.ICubicWorld;
+import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.populator.ICubicPopulator;
-import io.github.opencubicchunks.cubicchunks.core.worldgen.generator.vanilla.VanillaCompatibilityGenerator;
+import io.github.opencubicchunks.cubicchunks.cubicgen.CustomCubicMod;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings;
+import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings.IntAABB;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomTerrainGenerator;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.MutableBlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
@@ -16,28 +33,103 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class HybridTerrainGenerator implements ICubicPopulator {
-	CustomTerrainGenerator cubicGenerator;
-	VanillaCompatibilityGenerator vanillaGenerator;
 
-	public HybridTerrainGenerator() {}
-	
+	private static final String FILE_NAME = "custom_generator_settings.json";
+
+	private Int2ObjectMap<CustomTerrainGenerator> cubicGeneratorAtDimension = new Int2ObjectOpenHashMap<CustomTerrainGenerator>();
+	private final MutableBlockPos mbpos = new BlockPos.MutableBlockPos();
+	Int2ObjectMap<List<PopulationArea>> oresAtDimension = new Int2ObjectOpenHashMap<List<PopulationArea>>();
+
+	public HybridTerrainGenerator() {
+		ImmutableList<PopulationArea> list = ImmutableList.<PopulationArea>builder().build();
+		oresAtDimension.defaultReturnValue(list);
+	}
+
 	@SubscribeEvent
 	public void onWorldLoadEvent(WorldEvent.Load event) {
 		World world = event.getWorld();
 		if (world.isRemote || !(world instanceof WorldServer))
 			return;
-		String settingJsonString = CustomGeneratorSettings.loadJsonStringFromSaveFolder(world.getSaveHandler());
+		int dimension = event.getWorld().provider.getDimension();
+		String settingJsonString = loadJsonStringFromSaveFolder(event.getWorld(), FILE_NAME);
 		if (settingJsonString == null) {
-			LOGGER.error(
-					"Can't load settings from path:" + CustomGeneratorSettings.getPresetFile(world.getSaveHandler()));
-			settingJsonString = "";
+			return;
 		}
-		CustomGeneratorSettings cubicSettings = CustomGeneratorSettings.fromJson(settingJsonString);
-		cubicGenerator = new CustomTerrainGenerator(world, cubicSettings, world.getSeed());
+		CustomGeneratorSettings settings = CustomGeneratorSettings.fromJson(settingJsonString);
+		settings.strongholds = false;
+		for (Entry<IntAABB, CustomGeneratorSettings> entry : settings.cubeAreas.entrySet()) {
+			entry.getValue().strongholds = false;
+		}
+		ArrayList<PopulationArea> areas = new ArrayList<PopulationArea>();
+		if (!settings.standardOres.isEmpty() || !settings.periodicGaussianOres.isEmpty())
+			areas.add(new PopulationArea(settings));
+		this.addOreGenAreasToList(areas, settings);
+		oresAtDimension.put(dimension, areas);
+		CustomTerrainGenerator cubicGenerator = new CustomTerrainGenerator(world, world.getBiomeProvider(), settings,
+				world.getSeed());
+		cubicGeneratorAtDimension.put(dimension, cubicGenerator);
+	}
+
+	private void addOreGenAreasToList(List<PopulationArea> areas, CustomGeneratorSettings setting) {
+		for (Entry<IntAABB, CustomGeneratorSettings> entry : setting.cubeAreas.entrySet()) {
+			if (!entry.getValue().standardOres.isEmpty() || !entry.getValue().periodicGaussianOres.isEmpty())
+				areas.add(new PopulationArea(entry.getKey(), entry.getValue()));
+			this.addOreGenAreasToList(areas, entry.getValue());
+		}
 	}
 
 	@Override
-	public void generate(World arg0, Random arg1, CubePos arg2, Biome arg3) {
-		cubicGenerator.generateCube(arg2.getX(), arg2.getY(), arg2.getZ());
+	public void generate(World world, Random rand, CubePos cpos, Biome biome) {
+		if (cpos.getY() > 0 && cpos.getY() < 16)
+			return;
+		int dimension = world.provider.getDimension();
+		CustomTerrainGenerator cubicGenerator = cubicGeneratorAtDimension.get(dimension);
+		if (cubicGenerator == null)
+			return;
+		ICubicWorld cw = (ICubicWorld) world;
+		ICube cube = cw.getCubeFromCubeCoords(cpos);
+		CubePrimer cubePrimer = cubicGenerator.generateCube(cpos.getX(), cpos.getY(), cpos.getZ());
+		for (int ix = 0; ix < 16; ix++) {
+			for (int iy = 0; iy < 16; iy++) {
+				for (int iz = 0; iz < 16; iz++) {
+					mbpos.setPos(cpos.getMinBlockX() + ix, cpos.getMinBlockY() + iy, cpos.getMinBlockZ() + iz);
+					cube.setBlockState(mbpos, cubePrimer.getBlockState(ix, iy, iz));
+				}
+			}
+		}
+
+		List<PopulationArea> areas = oresAtDimension.get(world.provider.getDimension());
+		for (PopulationArea area : areas) {
+			area.generateIfInArea(world, rand, cpos, biome);
+		}
 	}
+
+	private static File getSettingsFile(World world, String fileName) {
+		File worldDirectory = world.getSaveHandler().getWorldDirectory();
+		String subfolder = world.provider.getSaveFolder();
+		if (subfolder == null)
+			subfolder = "";
+		else
+			subfolder += "/";
+		File settings = new File(worldDirectory, "./" + subfolder + "data/" + CustomCubicMod.MODID + "/" + fileName);
+		return settings;
+	}
+
+	public static String loadJsonStringFromSaveFolder(World world, String fileName) {
+		File settings = getSettingsFile(world, fileName);
+		if (settings.exists()) {
+			try (FileReader reader = new FileReader(settings)) {
+				CharBuffer sb = CharBuffer.allocate((int) settings.length());
+				reader.read(sb);
+				sb.flip();
+				return sb.toString();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} else {
+			LOGGER.info("No settings provided at path:" + settings.toString());
+		}
+		return null;
+	}
+
 }
