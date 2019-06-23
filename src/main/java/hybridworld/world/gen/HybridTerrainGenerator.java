@@ -14,8 +14,6 @@ import java.util.Random;
 import com.google.common.collect.ImmutableList;
 
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
-import io.github.opencubicchunks.cubicchunks.api.world.ICube;
-import io.github.opencubicchunks.cubicchunks.api.world.ICubicWorld;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.populator.ICubicPopulator;
 import io.github.opencubicchunks.cubicchunks.cubicgen.CustomCubicMod;
@@ -38,11 +36,11 @@ public class HybridTerrainGenerator implements ICubicPopulator {
 
 	private Int2ObjectMap<CustomTerrainGenerator> cubicGeneratorAtDimension = new Int2ObjectOpenHashMap<CustomTerrainGenerator>();
 	private final MutableBlockPos mbpos = new BlockPos.MutableBlockPos();
-	Int2ObjectMap<List<PopulationArea>> oresAtDimension = new Int2ObjectOpenHashMap<List<PopulationArea>>();
+	Int2ObjectMap<List<PopulationArea>> populatorsAtDimension = new Int2ObjectOpenHashMap<List<PopulationArea>>();
 
 	public HybridTerrainGenerator() {
 		ImmutableList<PopulationArea> list = ImmutableList.<PopulationArea>builder().build();
-		oresAtDimension.defaultReturnValue(list);
+		populatorsAtDimension.defaultReturnValue(list);
 	}
 
 	@SubscribeEvent
@@ -61,44 +59,40 @@ public class HybridTerrainGenerator implements ICubicPopulator {
 			entry.getValue().strongholds = false;
 		}
 		ArrayList<PopulationArea> areas = new ArrayList<PopulationArea>();
-		if (!settings.standardOres.isEmpty() || !settings.periodicGaussianOres.isEmpty())
-			areas.add(new PopulationArea(settings));
-		this.addOreGenAreasToList(areas, settings);
-		oresAtDimension.put(dimension, areas);
+		areas.add(new PopulationArea(settings));
+		this.addPopulationAreasToList(areas, settings);
+		populatorsAtDimension.put(dimension, areas);
 		CustomTerrainGenerator cubicGenerator = new CustomTerrainGenerator(world, world.getBiomeProvider(), settings,
 				world.getSeed());
 		cubicGeneratorAtDimension.put(dimension, cubicGenerator);
 	}
 
-	private void addOreGenAreasToList(List<PopulationArea> areas, CustomGeneratorSettings setting) {
+	private void addPopulationAreasToList(List<PopulationArea> areas, CustomGeneratorSettings setting) {
 		for (Entry<IntAABB, CustomGeneratorSettings> entry : setting.cubeAreas.entrySet()) {
-			if (!entry.getValue().standardOres.isEmpty() || !entry.getValue().periodicGaussianOres.isEmpty())
-				areas.add(new PopulationArea(entry.getKey(), entry.getValue()));
-			this.addOreGenAreasToList(areas, entry.getValue());
+			areas.add(new PopulationArea(entry.getKey(), entry.getValue()));
+			this.addPopulationAreasToList(areas, entry.getValue());
 		}
 	}
 
 	@Override
 	public void generate(World world, Random rand, CubePos cpos, Biome biome) {
-		if (cpos.getY() > 0 && cpos.getY() < 16)
+		if (cpos.getY() >= 0 && cpos.getY() < 16)
 			return;
 		int dimension = world.provider.getDimension();
 		CustomTerrainGenerator cubicGenerator = cubicGeneratorAtDimension.get(dimension);
 		if (cubicGenerator == null)
 			return;
-		ICubicWorld cw = (ICubicWorld) world;
-		ICube cube = cw.getCubeFromCubeCoords(cpos);
 		CubePrimer cubePrimer = cubicGenerator.generateCube(cpos.getX(), cpos.getY(), cpos.getZ());
 		for (int ix = 0; ix < 16; ix++) {
 			for (int iy = 0; iy < 16; iy++) {
 				for (int iz = 0; iz < 16; iz++) {
-					mbpos.setPos(cpos.getMinBlockX() + ix, cpos.getMinBlockY() + iy, cpos.getMinBlockZ() + iz);
-					cube.setBlockState(mbpos, cubePrimer.getBlockState(ix, iy, iz));
+					mbpos.setPos(cpos.getXCenter() + ix, cpos.getYCenter() + iy, cpos.getZCenter() + iz);
+					world.setBlockState(mbpos, cubePrimer.getBlockState(ix, iy, iz));
 				}
 			}
 		}
 
-		List<PopulationArea> areas = oresAtDimension.get(world.provider.getDimension());
+		List<PopulationArea> areas = populatorsAtDimension.get(world.provider.getDimension());
 		for (PopulationArea area : areas) {
 			area.generateIfInArea(world, rand, cpos, biome);
 		}
