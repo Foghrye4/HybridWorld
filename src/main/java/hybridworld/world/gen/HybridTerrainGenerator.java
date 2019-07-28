@@ -14,8 +14,10 @@ import java.util.Random;
 import com.google.common.collect.ImmutableList;
 
 import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.populator.ICubicPopulator;
+import io.github.opencubicchunks.cubicchunks.core.worldgen.generator.vanilla.VanillaCompatibilityGenerator;
 import io.github.opencubicchunks.cubicchunks.cubicgen.CustomCubicMod;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings.IntAABB;
@@ -27,10 +29,12 @@ import net.minecraft.util.math.BlockPos.MutableBlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.gen.IChunkGenerator;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-public class HybridTerrainGenerator implements ICubicPopulator {
+public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 
 	private static final String FILE_NAME = "custom_generator_settings.json";
 
@@ -38,18 +42,21 @@ public class HybridTerrainGenerator implements ICubicPopulator {
 	private final MutableBlockPos mbpos = new BlockPos.MutableBlockPos();
 	Int2ObjectMap<List<PopulationArea>> populatorsAtDimension = new Int2ObjectOpenHashMap<List<PopulationArea>>();
 
-	public HybridTerrainGenerator() {
+	private World world;
+
+	public HybridTerrainGenerator(IChunkGenerator vanilla, World world) {
+		super(vanilla, world);
+		this.world = world;
 		ImmutableList<PopulationArea> list = ImmutableList.<PopulationArea>builder().build();
 		populatorsAtDimension.defaultReturnValue(list);
+		this.onLoad(world);
 	}
 
-	@SubscribeEvent
-	public void onWorldLoadEvent(WorldEvent.Load event) {
-		World world = event.getWorld();
+	public void onLoad(World world) {
 		if (world.isRemote || !(world instanceof WorldServer))
 			return;
-		int dimension = event.getWorld().provider.getDimension();
-		String settingJsonString = loadJsonStringFromSaveFolder(event.getWorld(), FILE_NAME);
+		int dimension = world.provider.getDimension();
+		String settingJsonString = loadJsonStringFromSaveFolder(world, FILE_NAME);
 		if (settingJsonString == null) {
 			return;
 		}
@@ -74,27 +81,22 @@ public class HybridTerrainGenerator implements ICubicPopulator {
 		}
 	}
 
-	@Override
-	public void generate(World world, Random rand, CubePos cpos, Biome biome) {
-		if (cpos.getY() >= 0 && cpos.getY() < 16)
-			return;
+    @Override
+    public CubePrimer generateCube(int cubeX, int cubeY, int cubeZ) {
+		if (cubeY >= 0 && cubeY < 16)
+			return super.generateCube(cubeX, cubeY, cubeZ);
 		int dimension = world.provider.getDimension();
 		CustomTerrainGenerator cubicGenerator = cubicGeneratorAtDimension.get(dimension);
 		if (cubicGenerator == null)
-			return;
-		CubePrimer cubePrimer = cubicGenerator.generateCube(cpos.getX(), cpos.getY(), cpos.getZ());
-		for (int ix = 0; ix < 16; ix++) {
-			for (int iy = 0; iy < 16; iy++) {
-				for (int iz = 0; iz < 16; iz++) {
-					mbpos.setPos(cpos.getXCenter() + ix, cpos.getYCenter() + iy, cpos.getZCenter() + iz);
-					world.setBlockState(mbpos, cubePrimer.getBlockState(ix, iy, iz));
-				}
-			}
-		}
+			return super.generateCube(cubeX, cubeY, cubeZ);
+		return cubicGenerator.generateCube(cubeX, cubeY, cubeZ);
+    }
 
+	@Override
+    public void populate(ICube cube) {
 		List<PopulationArea> areas = populatorsAtDimension.get(world.provider.getDimension());
 		for (PopulationArea area : areas) {
-			area.generateIfInArea(world, rand, cpos, biome);
+			area.generateIfInArea(world, world.rand, cube.getCoords(), cube.getBiome(cube.getCoords().getCenterBlockPos()));
 		}
 	}
 
