@@ -27,8 +27,8 @@ import net.minecraftforge.fml.relauncher.Side;
 public class HybridWorldMod {
 	public static final String MODID = "hybridworld";	
 	public static final String NAME = "Hybrid world";
-	public static final String VERSION = "0.1.0";
-	public static final String DEPENCIES = "required:cubicchunks@[0.0.973.0,);required:cubicgen@[0.0.54.0,);required:forge@[14.23.3.2658,)";
+	public static final String VERSION = "0.1.1";
+	public static final String DEPENCIES = "required:cubicchunks@[0.0.989.0,);required:cubicgen@[0.0.67.0,);required:forge@[14.23.3.2658,)";
 
 	public static Logger LOGGER;
 

@@ -17,11 +17,13 @@ import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.populator.ICubicPopulator;
+import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.event.InitCubicStructureGeneratorEvent;
 import io.github.opencubicchunks.cubicchunks.core.worldgen.generator.vanilla.VanillaCompatibilityGenerator;
 import io.github.opencubicchunks.cubicchunks.cubicgen.CustomCubicMod;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings.IntAABB;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomTerrainGenerator;
+import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.structure.feature.CubicStrongholdGenerator;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.util.math.BlockPos;
@@ -57,10 +59,12 @@ public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 			return;
 		int dimension = world.provider.getDimension();
 		String settingJsonString = loadJsonStringFromSaveFolder(world, FILE_NAME);
-		if (settingJsonString == null) {
+		CustomGeneratorSettings settings = CustomGeneratorSettings.defaults();
+		if (settingJsonString != null) {
+			settings = CustomGeneratorSettings.fromJson(settingJsonString);
+		} else if (dimension != 0)
 			return;
-		}
-		CustomGeneratorSettings settings = CustomGeneratorSettings.fromJson(settingJsonString);
+			
 		settings.strongholds = false;
 		for (Entry<IntAABB, CustomGeneratorSettings> entry : settings.cubeAreas.entrySet()) {
 			entry.getValue().strongholds = false;
@@ -91,9 +95,10 @@ public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 			return super.generateCube(cubeX, cubeY, cubeZ);
 		return cubicGenerator.generateCube(cubeX, cubeY, cubeZ);
     }
-
+    
 	@Override
     public void populate(ICube cube) {
+		super.populate(cube);
 		List<PopulationArea> areas = populatorsAtDimension.get(world.provider.getDimension());
 		for (PopulationArea area : areas) {
 			area.generateIfInArea(world, world.rand, cube.getCoords(), cube.getBiome(cube.getCoords().getCenterBlockPos()));
