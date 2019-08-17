@@ -5,6 +5,7 @@ import java.util.Map;
 import org.apache.logging.log4j.Logger;
 
 import hybridworld.world.gen.HybridTerrainGenerator;
+import hybridworld.world.gen.StructureInitEventHandler;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubeGeneratorsRegistry;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.ICubeGenerator;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.VanillaCompatibilityGeneratorProviderBase;
@@ -27,7 +28,7 @@ import net.minecraftforge.fml.relauncher.Side;
 public class HybridWorldMod {
 	public static final String MODID = "hybridworld";	
 	public static final String NAME = "Hybrid world";
-	public static final String VERSION = "0.1.1";
+	public static final String VERSION = "0.2.0";
 	public static final String DEPENCIES = "required:cubicchunks@[0.0.989.0,);required:cubicgen@[0.0.67.0,);required:forge@[14.23.3.2658,)";
 
 	public static Logger LOGGER;
@@ -48,6 +49,7 @@ public class HybridWorldMod {
 		                .setUnlocalizedName("hybrid.gui.worldmenu.type"));
 		    }
 		});
+		MinecraftForge.TERRAIN_GEN_BUS.register(new StructureInitEventHandler());
 	}
 
 	@EventHandler

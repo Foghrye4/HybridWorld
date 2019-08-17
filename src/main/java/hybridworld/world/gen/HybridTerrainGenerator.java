@@ -4,105 +4,59 @@ import static hybridworld.HybridWorldMod.LOGGER;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.CharBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Random;
 
-import com.google.common.collect.ImmutableList;
-
-import io.github.opencubicchunks.cubicchunks.api.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.api.world.ICube;
 import io.github.opencubicchunks.cubicchunks.api.worldgen.CubePrimer;
-import io.github.opencubicchunks.cubicchunks.api.worldgen.populator.ICubicPopulator;
-import io.github.opencubicchunks.cubicchunks.api.worldgen.structure.event.InitCubicStructureGeneratorEvent;
 import io.github.opencubicchunks.cubicchunks.core.worldgen.generator.vanilla.VanillaCompatibilityGenerator;
 import io.github.opencubicchunks.cubicchunks.cubicgen.CustomCubicMod;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings;
-import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomGeneratorSettings.IntAABB;
 import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.CustomTerrainGenerator;
-import io.github.opencubicchunks.cubicchunks.cubicgen.customcubic.structure.feature.CubicStrongholdGenerator;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockPos.MutableBlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.gen.IChunkGenerator;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 
 	private static final String FILE_NAME = "custom_generator_settings.json";
-
-	private Int2ObjectMap<CustomTerrainGenerator> cubicGeneratorAtDimension = new Int2ObjectOpenHashMap<CustomTerrainGenerator>();
-	private final MutableBlockPos mbpos = new BlockPos.MutableBlockPos();
-	Int2ObjectMap<List<PopulationArea>> populatorsAtDimension = new Int2ObjectOpenHashMap<List<PopulationArea>>();
-
-	private World world;
-
+	private CustomTerrainGenerator cubicGenerator;
+	
 	public HybridTerrainGenerator(IChunkGenerator vanilla, World world) {
 		super(vanilla, world);
-		this.world = world;
-		ImmutableList<PopulationArea> list = ImmutableList.<PopulationArea>builder().build();
-		populatorsAtDimension.defaultReturnValue(list);
 		this.onLoad(world);
 	}
 
 	public void onLoad(World world) {
-		if (world.isRemote || !(world instanceof WorldServer))
-			return;
 		int dimension = world.provider.getDimension();
 		String settingJsonString = loadJsonStringFromSaveFolder(world, FILE_NAME);
-		CustomGeneratorSettings settings = CustomGeneratorSettings.defaults();
+		CustomGeneratorSettings settings = null;
 		if (settingJsonString != null) {
 			settings = CustomGeneratorSettings.fromJson(settingJsonString);
-		} else if (dimension != 0)
+		} else {
+			settings = DefaultGeneratorSettings.get(dimension);
+			if (settings != null)
+				saveJsonStringToSaveFolder(world, FILE_NAME, settings.toJson());
+		}
+		if (settings == null)
 			return;
-			
-		settings.strongholds = false;
-		for (Entry<IntAABB, CustomGeneratorSettings> entry : settings.cubeAreas.entrySet()) {
-			entry.getValue().strongholds = false;
-		}
-		ArrayList<PopulationArea> areas = new ArrayList<PopulationArea>();
-		areas.add(new PopulationArea(settings));
-		this.addPopulationAreasToList(areas, settings);
-		populatorsAtDimension.put(dimension, areas);
-		CustomTerrainGenerator cubicGenerator = new CustomTerrainGenerator(world, world.getBiomeProvider(), settings,
-				world.getSeed());
-		cubicGeneratorAtDimension.put(dimension, cubicGenerator);
+		this.cubicGenerator = new CustomTerrainGenerator(world, world.getBiomeProvider(), settings, world.getSeed());
 	}
 
-	private void addPopulationAreasToList(List<PopulationArea> areas, CustomGeneratorSettings setting) {
-		for (Entry<IntAABB, CustomGeneratorSettings> entry : setting.cubeAreas.entrySet()) {
-			areas.add(new PopulationArea(entry.getKey(), entry.getValue()));
-			this.addPopulationAreasToList(areas, entry.getValue());
-		}
-	}
-
-    @Override
-    public CubePrimer generateCube(int cubeX, int cubeY, int cubeZ) {
+	@Override
+	public CubePrimer generateCube(int cubeX, int cubeY, int cubeZ) {
 		if (cubeY >= 0 && cubeY < 16)
 			return super.generateCube(cubeX, cubeY, cubeZ);
-		int dimension = world.provider.getDimension();
-		CustomTerrainGenerator cubicGenerator = cubicGeneratorAtDimension.get(dimension);
 		if (cubicGenerator == null)
 			return super.generateCube(cubeX, cubeY, cubeZ);
 		return cubicGenerator.generateCube(cubeX, cubeY, cubeZ);
-    }
-    
+	}
+
 	@Override
-    public void populate(ICube cube) {
+	public void populate(ICube cube) {
 		super.populate(cube);
-		List<PopulationArea> areas = populatorsAtDimension.get(world.provider.getDimension());
-		for (PopulationArea area : areas) {
-			area.generateIfInArea(world, world.rand, cube.getCoords(), cube.getBiome(cube.getCoords().getCenterBlockPos()));
-		}
+		cubicGenerator.populate(cube);
 	}
 
 	private static File getSettingsFile(World world, String fileName) {
@@ -132,5 +86,32 @@ public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 		}
 		return null;
 	}
-
+	
+	public static void saveJsonStringToSaveFolder(World world, String fileName, String json) {
+		File settings = getSettingsFile(world, fileName);
+		settings.getParentFile().mkdirs();
+		try (FileWriter writer = new FileWriter(settings)) {
+			writer.write(json);
+			CustomCubicMod.LOGGER.info("Default generator settings saved at " + settings.getAbsolutePath());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+    @Override
+	public BlockPos getClosestStructure(String name, BlockPos pos, boolean findUnexplored) {
+		BlockPos vanillaStructurePos = super.getClosestStructure(name, pos, findUnexplored);
+		if (cubicGenerator == null || (!name.equals("Strongholds") && !name.equals("CubicStrongholds")))
+			return vanillaStructurePos;
+		BlockPos cubicPos = cubicGenerator.getClosestStructure("Strongholds", pos, findUnexplored);
+		if (vanillaStructurePos == null) {
+			return cubicPos;
+		}
+		if (cubicPos == null) {
+			return vanillaStructurePos;
+		} else if (pos.distanceSq(cubicPos) < pos.distanceSq(vanillaStructurePos)) {
+			return cubicPos;
+		}
+		return vanillaStructurePos;
+	}
 }

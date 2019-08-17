@@ -11,7 +11,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 //Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 
 
-version = "0.1.1"
+version = "0.2.0"
 group = "hybridworld" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "hybridworld"
 
@@ -47,7 +47,8 @@ minecraft {
 
 dependencies {
     deobfCompile 'io.github.opencubicchunks:cubicchunks:1.12.2-0.0-SNAPSHOT'
-    deobfCompile 'io.github.opencubicchunks:cubicworldgen:1.12.2-0.0.60.0-SNAPSHOT'
+    //deobfCompile 'io.github.opencubicchunks:cubicworldgen:1.12.2-0.0.60.0-SNAPSHOT'
+    compile files('lib/CubicWorldGen-1.12.2-0.0.67.0-SNAPSHOT-dev.jar')
 }
 
 processResources {
