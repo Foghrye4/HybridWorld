@@ -70,29 +70,29 @@ public class DefaultGeneratorSettings {
 
         settings.depthNoiseFactor = 1.02f;
         settings.depthNoiseOffset = -0.03f;
-        settings.depthNoiseFrequencyX = 229;
-        settings.depthNoiseFrequencyZ = 229;
+        settings.depthNoiseFrequencyX = 1f/229;
+        settings.depthNoiseFrequencyZ = 1f/229;
         settings.depthNoiseOctaves = 4;
 
         settings.selectorNoiseFactor = 12.8f;
         settings.selectorNoiseOffset = -0.03f;
-        settings.selectorNoiseFrequencyX = 116;
-        settings.selectorNoiseFrequencyY = 26;
-        settings.selectorNoiseFrequencyZ = 116;
+        settings.selectorNoiseFrequencyX = 1f/116;
+        settings.selectorNoiseFrequencyY = 1f/26;
+        settings.selectorNoiseFrequencyZ = 1f/116;
         settings.selectorNoiseOctaves = 3;
 
         settings.lowNoiseFactor = 1.0f;
         settings.lowNoiseOffset = -0.03f;
-        settings.lowNoiseFrequencyX = 72;
-        settings.lowNoiseFrequencyY = 80;
-        settings.lowNoiseFrequencyZ = 72;
+        settings.lowNoiseFrequencyX = 1f/72;
+        settings.lowNoiseFrequencyY = 1f/80;
+        settings.lowNoiseFrequencyZ = 1f/72;
         settings.lowNoiseOctaves = 3;
 
         settings.highNoiseFactor = 1;
         settings.highNoiseOffset = -0.3f;
-        settings.highNoiseFrequencyX = 77;
-        settings.highNoiseFrequencyY = 82;
-        settings.highNoiseFrequencyZ = 77;
+        settings.highNoiseFrequencyX = 1f/77;
+        settings.highNoiseFrequencyY = 1f/82;
+        settings.highNoiseFrequencyZ = 1f/77;
         settings.highNoiseOctaves = 2;
         settings.replacerConfig.setDefault(new ResourceLocation("cubicgen:terrain_fill_block"), Blocks.NETHERRACK.getDefaultState());
         settings.replacerConfig.setDefault(new ResourceLocation("cubicgen:ocean_block"), Blocks.LAVA.getDefaultState());
@@ -100,18 +100,27 @@ public class DefaultGeneratorSettings {
         {
             settings.standardOres.addAll(Arrays.asList(
                     StandardOreConfig.builder()
+                    		.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
                             .block(Blocks.QUARTZ_ORE.getDefaultState())
                             .size(17).attempts(10).probability(1f / (256f / ICube.SIZE)).create(),
                     StandardOreConfig.builder()
+            				.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
                             .block(Blocks.GLOWSTONE.getDefaultState())
                             .size(6).attempts(8).probability(2f / (256f / ICube.SIZE)).create(),
                     StandardOreConfig.builder()
+            				.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
                     		.block(Blocks.SOUL_SAND.getDefaultState())
                     		.size(33).attempts(10).probability(1f / (256f / ICube.SIZE)).create(),
                     StandardOreConfig.builder()
+            				.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
                     		.block(Blocks.GRAVEL.getDefaultState())
                     		.size(33).attempts(10).probability(1f / (256f / ICube.SIZE)).create(),
                     StandardOreConfig.builder()
+            				.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
+                    		.block(Blocks.LAVA.getDefaultState())
+                    		.size(1).attempts(10).probability(1f / (256f / ICube.SIZE)).create(),
+                    StandardOreConfig.builder()
+                    		.genInBlockstates(Blocks.NETHERRACK.getDefaultState())
                     		.block(Blocks.MAGMA.getDefaultState())
                     		.size(33).attempts(10).probability(4f / (256f / ICube.SIZE)).create()
                     ));
@@ -157,29 +166,29 @@ public class DefaultGeneratorSettings {
 
         settings.depthNoiseFactor = 1f;
         settings.depthNoiseOffset = 0.5f;
-        settings.depthNoiseFrequencyX = 220;
-        settings.depthNoiseFrequencyZ = 220;
+        settings.depthNoiseFrequencyX = 1f/220;
+        settings.depthNoiseFrequencyZ = 1f/220;
         settings.depthNoiseOctaves = 4;
 
         settings.selectorNoiseFactor = 12f;
         settings.selectorNoiseOffset = -0.4f;
-        settings.selectorNoiseFrequencyX = 21;
-        settings.selectorNoiseFrequencyY = 120;
-        settings.selectorNoiseFrequencyZ = 21;
+        settings.selectorNoiseFrequencyX = 1f/21;
+        settings.selectorNoiseFrequencyY = 1f/120;
+        settings.selectorNoiseFrequencyZ = 1f/21;
         settings.selectorNoiseOctaves = 3;
 
         settings.lowNoiseFactor = 1f;
         settings.lowNoiseOffset = -0.3f;
-        settings.lowNoiseFrequencyX = 72;
-        settings.lowNoiseFrequencyY = 80;
-        settings.lowNoiseFrequencyZ = 72;
+        settings.lowNoiseFrequencyX = 1f/72;
+        settings.lowNoiseFrequencyY = 1f/80;
+        settings.lowNoiseFrequencyZ = 1f/72;
         settings.lowNoiseOctaves = 3;
 
         settings.highNoiseFactor = 1f;
         settings.highNoiseOffset = -0.6f;
-        settings.highNoiseFrequencyX = 76;
-        settings.highNoiseFrequencyY = 82;
-        settings.highNoiseFrequencyZ = 76;
+        settings.highNoiseFrequencyX = 1f/76;
+        settings.highNoiseFrequencyY = 1f/82;
+        settings.highNoiseFrequencyZ = 1f/76;
         settings.highNoiseOctaves = 1;
         settings.replacerConfig.setDefault(new ResourceLocation("cubicgen:terrain_fill_block"), Blocks.END_STONE.getDefaultState());
         settings.replacerConfig.setDefault(new ResourceLocation("cubicgen:ocean_block"), Blocks.AIR.getDefaultState());
