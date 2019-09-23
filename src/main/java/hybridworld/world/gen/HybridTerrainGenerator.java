@@ -56,7 +56,8 @@ public class HybridTerrainGenerator extends VanillaCompatibilityGenerator {
 	@Override
 	public void populate(ICube cube) {
 		super.populate(cube);
-		cubicGenerator.populate(cube);
+		if (cubicGenerator != null)
+			cubicGenerator.populate(cube);
 	}
 
 	private static File getSettingsFile(World world, String fileName) {
